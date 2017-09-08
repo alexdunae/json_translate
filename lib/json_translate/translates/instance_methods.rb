@@ -28,6 +28,11 @@ module JSONTranslate
         translations[available.to_s]
       end
 
+      def query_json_translation(attr_name, locale = I18n.locale)
+        value = read_json_translation(attr_name, locale)
+        !value.blank?
+      end
+
       def write_json_translation(attr_name, value, locale = I18n.locale)
         translation_store = "#{attr_name}#{SUFFIX}"
         translations = public_send(translation_store) || {}
@@ -43,12 +48,15 @@ module JSONTranslate
       end
 
       def method_missing_with_translates(method_name, *args)
-        translated_attr_name, locale, assigning = parse_translated_attribute_accessor(method_name)
+        translated_attr_name, locale, suffix = parse_translated_attribute_accessor(method_name)
 
         return method_missing_without_translates(method_name, *args) unless translated_attr_name
 
-        if assigning
+        case suffix
+        when '='
           write_json_translation(translated_attr_name, args.first, locale)
+        when '?'
+          query_json_translation(translated_attr_name, locale)
         else
           read_json_translation(translated_attr_name, locale)
         end
@@ -61,23 +69,25 @@ module JSONTranslate
       # Examples
       #
       #   parse_translated_attribute_accessor("title_en=")
-      #   # => [:title, :en, true]
+      #   # => [:title, :en, '=']
+      #
+      #   parse_translated_attribute_accessor("title_fr?")
+      #   # => [:title, :fr, '?']
       #
       #   parse_translated_attribute_accessor("title_fr")
-      #   # => [:title, :fr, false]
+      #   # => [:title, :fr, nil]
       #
-      # Returns the attribute name Symbol, locale Symbol, and a Boolean
-      # indicating whether or not the caller is attempting to assign a value.
+      # Returns the attribute name Symbol, locale Symbol, and a String
+      # suffix indicating if the method was called with '?' or '=' after it.
       def parse_translated_attribute_accessor(method_name)
-        return unless /\A(?<attribute>[a-z_]+)_(?<locale>[a-z]{2})(?<assignment>=?)\z/ =~ method_name
+        return unless /\A(?<attribute>[a-z_]+)_(?<locale>[a-z]{2})(?<suffix>[=\?]{0,1})\z/ =~ method_name
 
         translated_attr_name = attribute.to_sym
         return unless translated_attribute_names.include?(translated_attr_name)
 
-        locale    = locale.to_sym
-        assigning = assignment.present?
+        locale = locale.to_sym
 
-        [translated_attr_name, locale, assigning]
+        [translated_attr_name, locale, suffix.present? ? suffix : nil]
       end
 
       def toggle_fallback(enabled)

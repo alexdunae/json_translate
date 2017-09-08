@@ -23,6 +23,10 @@ module JSONTranslate
           read_json_translation(attr_name)
         end
 
+        define_method "#{attr_name}?" do
+          query_json_translation(attr_name)
+        end
+
         define_method "#{attr_name}=" do |value|
           write_json_translation(attr_name, value)
         end
