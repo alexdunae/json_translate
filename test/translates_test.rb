@@ -142,6 +142,33 @@ class TranslatesTest < JSONTranslate::Test
     end
   end
 
+  def test_queries_locale
+    p = Post.new(:title_translations => { "en" => "", "fr" => "Titre français" })
+    refute p.title_en?
+    assert p.title_fr?
+
+    I18n.with_locale(:en) do
+      refute p.title?
+    end
+
+    I18n.with_locale(:fr) do
+      assert p.title?
+    end
+  end
+
+  def test_queries_locale_with_fallback
+    I18n::Backend::Simple.include(I18n::Backend::Fallbacks)
+    I18n.default_locale = :"en-US"
+
+    p = Post.new(:title_translations => { "en" => "", "fr" => "Titre français" })
+    refute p.title_en?
+    assert p.title_fr?
+
+    I18n.with_locale(:fr) do
+      assert p.title?
+    end
+  end
+
   def test_class_method_translates?
     assert_equal true, Post.translates?
     assert_equal true, PostDetailed.translates?
